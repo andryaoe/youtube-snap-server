@@ -1,16 +1,12 @@
 {
   "name": "youtube-snap-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Farcaster Snap Server",
+  "main": "server.js",
   "scripts": {
-  "start": "node server.js"
-}
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+    "start": "node server.js"
+  },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^4.18.2"
   }
 }
