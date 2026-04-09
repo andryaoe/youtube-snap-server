@@ -1,10 +1,10 @@
-// server.js final full interaktif (tanpa dotenv dan node-fetch)
+// server.js final full interaktif untuk channel andryaoe
 const express = require("express");
 const app = express();
 
-// Gunakan Environment Variables Railway
-const API_KEY = process.env.YOUTUBE_API_KEY;        // YouTube API key
-const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID;  // YouTube Channel ID
+// Data langsung (API key dan channel ID)
+const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
+const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
 
 // Ambil 5 video terbaru
 async function getLatestVideos() {
@@ -12,7 +12,6 @@ async function getLatestVideos() {
   const res = await fetch(url);
   const data = await res.json();
 
-  // Mapping ke layout Snap interaktif
   return data.items.map(video => ({
     type: "view",
     layout: "horizontal",
@@ -42,7 +41,6 @@ app.get("/", (req, res) => {
 app.get("/snap", async (req, res) => {
   const accept = req.headers["accept"] || "";
 
-  // Jika request dari Farcaster Snap
   if (accept.includes("application/vnd.farcaster.snap+json")) {
     const videos = await getLatestVideos();
 
