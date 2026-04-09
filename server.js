@@ -4,7 +4,7 @@ import axios from "axios";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔑 HARDCODE (works)
+// 🔑 HARDCODED (works)
 const YOUTUBE_API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
 const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
 const BASE_URL = "https://youtube-snap-server-production.up.railway.app";
@@ -17,11 +17,13 @@ app.get("/", (req, res) => {
 });
 
 // ===============================
-// GET YOUTUBE VIDEOS (JSON)
+// GET YOUTUBE VIDEOS
 // ===============================
 app.get("/videos", async (req, res) => {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=5`;
+    const url =
+      `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=5`;
+
     const response = await axios.get(url);
 
     const videos = response.data.items
@@ -41,48 +43,123 @@ app.get("/videos", async (req, res) => {
 });
 
 // ===============================
-// FARCASTER SNAP FRAME vNext
+// FARCASTER SNAP ENDPOINT
 // ===============================
 app.get("/snap", async (req, res) => {
+  const accept = req.headers["accept"] || "";
+
+  // Snap request
+  if (accept.includes("application/vnd.farcaster.snap+json")) {
+    try {
+      const url =
+        `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=1`;
+
+      const response = await axios.get(url);
+      const video = response.data.items[0];
+
+      const title = video.snippet.title;
+      const thumbnail = video.snippet.thumbnails.high.url;
+      const videoUrl = `https://www.youtube.com/watch?v=${video.id.videoId}`;
+      const channelUrl = `https://www.youtube.com/channel/${CHANNEL_ID}`;
+      const shareText = `Check out this video: ${videoUrl} (credit: @andryaoe.eth)`;
+
+      const snapJson = {
+        version: "1",
+        type: "snap",
+        layout: {
+          type: "view",
+          contents: [
+            { type: "text", value: `📺 ${title}` },
+            { type: "image", url: thumbnail },
+            {
+              type: "button",
+              label: "▶️ Watch Video",
+              action: { type: "open_url", url: videoUrl }
+            },
+            {
+              type: "button",
+              label: "🔔 Subscribe",
+              action: { type: "open_url", url: channelUrl }
+            },
+            {
+              type: "button",
+              label: "📤 Share",
+              action: {
+                type: "cast",
+                text: shareText
+              }
+            }
+          ]
+        }
+      };
+
+      res.setHeader("Content-Type", "application/vnd.farcaster.snap+json");
+      return res.json(snapJson);
+    } catch (err) {
+      console.log(err.response?.data || err.message);
+      return res.status(500).json({ error: "Snap frame error" });
+    }
+  }
+
+  // Non-snap request → landing page
+  res.redirect("/channel");
+});
+
+// ===============================
+// CHANNEL LANDING PAGE
+// ===============================
+app.get("/channel", async (req, res) => {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=1`;
+    const url =
+      `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=5`;
+
     const response = await axios.get(url);
-    const video = response.data.items[0];
+    const videos = response.data.items.filter(v => v.id.videoId);
 
-    if (!video) return res.status(404).send("No video found");
+    const videoHTML = videos.length
+      ? videos.map(v => `
+        <div class="video-card">
+          <iframe width="350" height="200" src="https://www.youtube.com/embed/${v.id.videoId}" frameborder="0" allowfullscreen></iframe>
+          <p>${v.snippet.title}</p>
+        </div>
+      `).join("")
+      : `<p>No videos available 😢</p>`;
 
-    const title = video.snippet.title;
-    const thumbnail = video.snippet.thumbnails.high.url;
-    const videoUrl = `https://www.youtube.com/watch?v=${video.id.videoId}`;
-    const shareUrl = `https://farcaster.xyz/cast?text=${encodeURIComponent(`${videoUrl} 🔗 credit snap by @andryaoe.eth`)}`;
-
-    // Output Farcaster Frame vNext
-    const html = `
-    <!DOCTYPE html>
+    res.send(`
     <html>
       <head>
-        <meta name="fc:frame" content="vNext" />
-        <meta name="fc:frame:title" content="${title}" />
-        <meta name="fc:frame:image" content="${thumbnail}" />
-
-        <meta name="fc:frame:button:1" content="▶️ Watch Video" />
-        <meta name="fc:frame:button:1:action" content="link" />
-        <meta name="fc:frame:button:1:target" content="${videoUrl}" />
-
-        <meta name="fc:frame:button:2" content="🔗 Share" />
-        <meta name="fc:frame:button:2:action" content="link" />
-        <meta name="fc:frame:button:2:target" content="${shareUrl}" />
+        <title>My YouTube Channel</title>
+        <style>
+          body {margin:0; font-family:sans-serif; background:#0f172a; color:white;}
+          header {text-align:center; padding:30px; background:#1e293b;}
+          header h1 {margin:0; font-size:2.5em;}
+          header p {margin:5px 0; font-size:1.2em; color:#cbd5e1;}
+          .btn {background:red; color:white; padding:12px 25px; border-radius:10px; text-decoration:none; margin:10px; display:inline-block;}
+          .container {max-width:1000px; margin:auto; padding:20px;}
+          .videos {display:flex; flex-wrap:wrap; justify-content:center; gap:20px;}
+          .video-card {background:#1e293b; padding:10px; border-radius:12px; width:360px; text-align:center;}
+          .video-card p {margin:5px 0; font-size:1em;}
+          a.btn:hover {opacity:0.8;}
+        </style>
       </head>
       <body>
-        <h1>${title}</h1>
+        <header>
+          <h1>🎬 My YouTube Channel</h1>
+          <p>Welcome to my channel! Latest videos, bio, and subscribe button.</p>
+          <a class="btn" href="${channelUrl}" target="_blank">🔔 Subscribe Now</a>
+        </header>
+        <div class="container">
+          <h2 style="text-align:center;">Latest Videos</h2>
+          <div class="videos">
+            ${videoHTML}
+          </div>
+        </div>
       </body>
     </html>
-    `;
-
-    res.send(html);
+    `);
   } catch (err) {
     console.log(err.response?.data || err.message);
-    res.status(500).send("Frame error");
+    res.status(500).send("Channel page error");
   }
 });
 
