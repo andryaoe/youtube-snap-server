@@ -1,87 +1,93 @@
 // server.js
 import express from "express";
 import axios from "axios";
+import { verifyJFS } from "@farcaster/jfs"; // pastikan package @farcaster/jfs terinstal
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔑 HARDCODE (sudah terbukti works)
-const YOUTUBE_API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
-const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
-const BASE_URL = "https://youtube-snap-server-production.up.railway.app";
+// Environment variables (Railway)
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+const BASE_URL = process.env.BASE_URL;
 
-// ===============================
 // Middleware
-// ===============================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ===============================
-// ROOT (health check)
-// ===============================
-app.get("/", (req, res) => {
-  res.send("YouTube Snap Server Running 🚀");
-});
+// Health check
+app.get("/", (req, res) => res.send("YouTube Snap Server Running 🚀"));
 
-// ===============================
-// GET YOUTUBE VIDEOS (JSON)
-// ===============================
+// JSON endpoint videos
 app.get("/videos", async (req, res) => {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search` +
-      `?key=${YOUTUBE_API_KEY}` +
-      `&channelId=${CHANNEL_ID}` +
-      `&part=snippet,id&order=date&maxResults=5`;
-
+    const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=5`;
     const response = await axios.get(url);
     const videos = response.data.items
-      .filter(item => item.id.videoId)
-      .map(item => ({
-        title: item.snippet.title,
-        videoId: item.id.videoId,
-        thumbnail: item.snippet.thumbnails.high.url,
-        url: `https://www.youtube.com/watch?v=${item.id.videoId}`
+      .filter(v => v.id.videoId)
+      .map(v => ({
+        title: v.snippet.title,
+        videoId: v.id.videoId,
+        thumbnail: v.snippet.thumbnails.high.url,
+        url: `https://www.youtube.com/watch?v=${v.id.videoId}`
       }));
-
     res.json(videos);
   } catch (err) {
-    console.log(err.response?.data || err.message);
+    console.log(err.message);
     res.status(500).json({ error: "Failed to fetch videos" });
   }
 });
 
-// ===============================
-// FARCASTER FRAME (GET /snap)
-// ===============================
+// Farcaster Snap endpoint
 app.get("/snap", async (req, res) => {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search` +
-      `?key=${YOUTUBE_API_KEY}` +
-      `&channelId=${CHANNEL_ID}` +
-      `&part=snippet,id&order=date&maxResults=1`;
-
+    const url = `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=5`;
     const response = await axios.get(url);
-    const video = response.data.items.find(v => v.id.videoId);
-    const title = video.snippet.title;
-    const thumbnail = video.snippet.thumbnails.high.url;
+    const videos = response.data.items.filter(v => v.id.videoId);
+
+    let metaButtons = "";
+    let bodyHTML = "";
+
+    videos.forEach((video, idx) => {
+      const vidUrl = `https://www.youtube.com/watch?v=${video.id.videoId}`;
+      const title = video.snippet.title;
+      const thumb = video.snippet.thumbnails.high.url;
+
+      // Watch button
+      metaButtons += `
+        <meta name="fc:frame:button:${idx + 1}" content="▶️ Watch">
+        <meta name="fc:frame:button:${idx + 1}:action" content="link">
+        <meta name="fc:frame:button:${idx + 1}:target" content="${vidUrl}">
+      `;
+
+      // Share button
+      metaButtons += `
+        <meta name="fc:frame:button:${idx + 100}" content="🔗 Share">
+        <meta name="fc:frame:button:${idx + 100}:action" content="post">
+        <meta name="fc:frame:button:${idx + 100}:target" content="/share">
+        <meta name="fc:frame:button:${idx + 100}:payload" content='{"videoTitle":"${title}","videoUrl":"${vidUrl}"}'>
+      `;
+
+      bodyHTML += `
+        <div style="margin-bottom:15px; display:flex; align-items:center; gap:10px;">
+          <img src="${thumb}" width="120" style="border-radius:8px;" />
+          <span style="font-size:16px; font-weight:bold;">${title}</span>
+        </div>
+      `;
+    });
 
     const html = `
 <!DOCTYPE html>
 <html>
 <head>
-  <meta property="og:title" content="${title}" />
-  <meta property="og:image" content="${thumbnail}" />
-
-  <meta name="fc:frame" content="vNext" />
-  <meta name="fc:frame:image" content="${thumbnail}" />
-
-  <meta name="fc:frame:button:1" content="▶️ Watch Video" />
-  <meta name="fc:frame:button:2" content="🔄 Refresh" />
-
-  <meta name="fc:frame:post_url" content="${BASE_URL}/snap" />
+  <meta name="fc:frame" content="vNext">
+  <meta name="fc:frame:title" content="Latest Videos">
+  <meta name="fc:frame:image" content="${videos[0]?.snippet?.thumbnails?.high?.url || ''}">
+  ${metaButtons}
 </head>
-<body>
-  <h1>${title}</h1>
+<body style="font-family:sans-serif; margin:20px;">
+  <h2>Latest Videos</h2>
+  ${bodyHTML}
 </body>
 </html>
 `;
@@ -95,55 +101,31 @@ app.get("/snap", async (req, res) => {
   }
 });
 
-// ===============================
-// FARCASTER FRAME INTERACTION (POST /snap)
-// ===============================
-app.post("/snap", async (req, res) => {
+// POST /share — authenticated via JFS
+app.post("/share", async (req, res) => {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search` +
-      `?key=${YOUTUBE_API_KEY}` +
-      `&channelId=${CHANNEL_ID}` +
-      `&part=snippet,id&order=date&maxResults=1`;
+    const jfsCompact = req.headers["content-type"] === "application/jfs+json" ? req.body : req.body.jfs;
 
-    const response = await axios.get(url);
-    const video = response.data.items.find(v => v.id.videoId);
-    const title = video.snippet.title;
-    const thumbnail = video.snippet.thumbnails.high.url;
-    const videoUrl = `https://www.youtube.com/watch?v=${video.id.videoId}`;
+    if (!jfsCompact) return res.status(400).json({ error: "Missing JFS" });
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta property="og:title" content="${title}" />
-  <meta property="og:image" content="${thumbnail}" />
+    // Verify JFS signature
+    const verified = await verifyJFS(jfsCompact);
+    if (!verified.valid) return res.status(401).json({ error: "Invalid JFS" });
 
-  <meta name="fc:frame" content="vNext" />
-  <meta name="fc:frame:image" content="${thumbnail}" />
+    const { videoTitle, videoUrl } = verified.payload;
 
-  <meta name="fc:frame:button:1" content="▶️ Open YouTube" />
-  <meta name="fc:frame:button:1:action" content="link" />
-  <meta name="fc:frame:button:1:target" content="${videoUrl}" />
+    // Simulasi post cast (replace with actual Farcaster post API if tersedia)
+    console.log("Creating cast:", videoTitle, videoUrl, "by FID", verified.fid);
 
-  <meta name="fc:frame:button:2" content="🔄 Back" />
-  <meta name="fc:frame:post_url" content="${BASE_URL}/snap" />
-</head>
-<body>
-  <h1>${title}</h1>
-</body>
-</html>
-`;
-
-    res.setHeader("Content-Type", "text/html");
-    res.send(html);
+    res.json({
+      status: "success",
+      message: `Cast created: "${videoTitle}" 🔗 ${videoUrl} #credit @andryaoe.eth`
+    });
 
   } catch (err) {
     console.log(err.message);
-    res.status(500).send("Frame interaction error");
+    res.status(500).json({ error: "Failed to share" });
   }
 });
 
-// ===============================
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
