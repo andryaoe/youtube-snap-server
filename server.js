@@ -1,10 +1,9 @@
-// server.js final full interaktif tanpa dotenv
+// server.js final full interaktif (tanpa dotenv dan node-fetch)
 const express = require("express");
-const fetch = require("node-fetch");
 const app = express();
 
 // Gunakan Environment Variables Railway
-const API_KEY = process.env.YOUTUBE_API_KEY;        // YouTube Data API key
+const API_KEY = process.env.YOUTUBE_API_KEY;        // YouTube API key
 const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID;  // YouTube Channel ID
 
 // Ambil 5 video terbaru
@@ -36,13 +35,14 @@ async function getLatestVideos() {
 
 // Route utama
 app.get("/", (req, res) => {
-  res.send("<h1>YouTube Snap Server</h1><p>Use /snap for Farcaster Snap</p>");
+  res.send("<h1>YouTube Snap Server</h1><p>Gunakan /snap untuk Farcaster Snap</p>");
 });
 
 // Route Snap untuk Farcaster
 app.get("/snap", async (req, res) => {
   const accept = req.headers["accept"] || "";
 
+  // Jika request dari Farcaster Snap
   if (accept.includes("application/vnd.farcaster.snap+json")) {
     const videos = await getLatestVideos();
 
@@ -59,7 +59,7 @@ app.get("/snap", async (req, res) => {
     });
   }
 
-  // Jika browser biasa → redirect ke channel
+  // Browser biasa → redirect ke channel
   res.redirect(`https://www.youtube.com/channel/${CHANNEL_ID}`);
 });
 
