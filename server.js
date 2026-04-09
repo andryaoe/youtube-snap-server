@@ -1,24 +1,21 @@
-// ===== IMPORT =====
 const express = require("express");
 const fetch = require("node-fetch");
 const path = require("path");
 
 const app = express();
 
-// ===== ENV (Railway Variables) =====
-const API_KEY = process.env.YOUTUBE_API_KEY;
-const CHANNEL_ID = process.env.CHANNEL_ID;
+// 🔴 HARDCODE LANGSUNG (tanpa ENV)
+const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
+const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
 const BASE_URL = "https://youtube-snap-server-production.up.railway.app";
 
-// ===== STATIC FILES =====
 app.use(express.static("public"));
 app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
 
-// ===== YOUTUBE FETCH =====
+
+// ===== FETCH YOUTUBE =====
 async function getLatestVideos() {
   try {
-    console.log("ENV CHECK:", API_KEY ? "API OK" : "NO API KEY");
-
     const url =
       `https://www.googleapis.com/youtube/v3/search` +
       `?key=${API_KEY}` +
@@ -28,25 +25,27 @@ async function getLatestVideos() {
       `&maxResults=6` +
       `&type=video`;
 
+    console.log("Fetching:", url);
+
     const res = await fetch(url);
     const data = await res.json();
 
-    console.log("YouTube items:", data.items?.length);
+    console.log("YOUTUBE RESPONSE:", JSON.stringify(data));
 
     if (!data.items) return [];
     return data.items;
   } catch (err) {
-    console.log("YouTube Fetch Error:", err);
+    console.log("YOUTUBE ERROR:", err);
     return [];
   }
 }
 
-// ===== HOME =====
-app.get("/", (req, res) => {
-  res.redirect("/channel");
-});
 
-// ===== LANDING PAGE =====
+// ===== HOME =====
+app.get("/", (req, res) => res.redirect("/channel"));
+
+
+// ===== CHANNEL PAGE =====
 app.get("/channel", async (req, res) => {
   const videos = await getLatestVideos();
 
@@ -55,12 +54,11 @@ app.get("/channel", async (req, res) => {
       <div class="video-card">
         <iframe width="350" height="200"
           src="https://www.youtube.com/embed/${v.id.videoId}"
-          frameborder="0" allowfullscreen>
-        </iframe>
+          frameborder="0" allowfullscreen></iframe>
         <p>${v.snippet.title}</p>
       </div>
     `).join("")
-    : `<p>No videos available 😢</p>`;
+    : `<h2>No videos available 😢</h2>`;
 
   res.send(`
   <html>
@@ -70,8 +68,7 @@ app.get("/channel", async (req, res) => {
       body{margin:0;font-family:sans-serif;background:#0f172a;color:white}
       header{text-align:center;padding:30px;background:#1e293b}
       .btn{background:red;color:white;padding:12px 25px;border-radius:10px;text-decoration:none}
-      .container{max-width:1000px;margin:auto;padding:20px}
-      .videos{display:flex;flex-wrap:wrap;justify-content:center;gap:20px}
+      .videos{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;padding:20px}
       .video-card{background:#1e293b;padding:10px;border-radius:12px;width:360px;text-align:center}
     </style>
   </head>
@@ -79,20 +76,17 @@ app.get("/channel", async (req, res) => {
     <header>
       <h1>🎬 My YouTube Channel</h1>
       <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">
-        🔔 Subscribe
+        Subscribe
       </a>
     </header>
-    <div class="container">
-      <h2 style="text-align:center">Latest Videos</h2>
-      <div class="videos">${videoHTML}</div>
-    </div>
+    <div class="videos">${videoHTML}</div>
   </body>
   </html>
   `);
 });
 
 
-// ===== SNAP ENDPOINT =====
+// ===== SNAP =====
 app.get("/snap", async (req, res) => {
   const accept = req.headers.accept || "";
 
@@ -126,7 +120,7 @@ app.get("/snap", async (req, res) => {
 });
 
 
-// ===== FARCASTER FRAME =====
+// ===== FRAME =====
 app.get("/frame", async (req, res) => {
   const videos = await getLatestVideos();
   const firstVideo = videos[0];
@@ -136,24 +130,21 @@ app.get("/frame", async (req, res) => {
     BASE_URL + "/placeholder.png";
 
   res.send(`
-  <!DOCTYPE html>
   <html>
   <head>
-    <meta property="og:title" content="My YouTube Channel" />
     <meta property="og:image" content="${image}" />
-
     <meta name="fc:frame" content="vNext" />
     <meta name="fc:frame:image" content="${image}" />
     <meta name="fc:frame:button:1" content="Open Channel" />
     <meta name="fc:frame:button:1:action" content="link" />
     <meta name="fc:frame:button:1:target" content="${BASE_URL}/channel" />
   </head>
-  <body>Farcaster Frame</body>
+  <body>Frame</body>
   </html>
   `);
 });
 
 
-// ===== START SERVER =====
+// ===== START =====
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+app.listen(PORT, () => console.log("Server running on " + PORT));
