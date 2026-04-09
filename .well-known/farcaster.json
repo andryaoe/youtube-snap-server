@@ -1,12 +1,18 @@
 {
-  "version": "1",
-  "name": "YouTube Snap Server",
-  "description": "Snap menampilkan video terbaru, bio, dan tombol subscribe dari channel YouTube saya",
-  "icon": "https://youtube-snap-server-production.up.railway.app/icon.png",
-  "homeUrl": "https://youtube-snap-server-production.up.railway.app",
-  "imageUrl": "https://youtube-snap-server-production.up.railway.app/placeholder.png",
-  "splashImageUrl": "https://youtube-snap-server-production.up.railway.app/splash.png",
-  "splashBackgroundColor": "#0f172a",
-  "buttonTitle": "Open Channel",
-  "webhookUrl": "https://youtube-snap-server-production.up.railway.app/api/webhook"
+  "accountAssociation": {
+    "header": "eyJmaWQiOjc1NTQ2NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEUxNEIxNkEwMDRkOTg4OUQ0ODNDNkUxMzI5M2RmYzY5YTAyZjNjQ2MifQ",
+    "payload": "eyJkb21haW4iOiJ5b3V0dWJlLXNuYXAtc2VydmVyLXByb2R1Y3Rpb24udXAucmFpbHdheS5hcHAifQ",
+    "signature": "5Z64+7EvLHh6jvSKsbi5hikk8YjdRZo4bIe/37zkLThuVonBgD8+v4C8cJgM+kMRkpMEY5yvLKbE6kB/nj1Dfxs="
+  },
+  "frame": {
+    "version": "1",
+    "name": "Example Frame",
+    "iconUrl": "https://youtube-snap-server-production.up.railway.app/icon.png",
+    "homeUrl": "https://youtube-snap-server-production.up.railway.app",
+    "imageUrl": "https://youtube-snap-server-production.up.railway.app/image.png",
+    "buttonTitle": "Check this out",
+    "splashImageUrl": "https://youtube-snap-server-production.up.railway.app/splash.png",
+    "splashBackgroundColor": "#eeccff",
+    "webhookUrl": "https://youtube-snap-server-production.up.railway.app/api/webhook"
+  }
 }
