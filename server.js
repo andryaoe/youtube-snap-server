@@ -7,24 +7,39 @@ const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
 app.use(express.static("public"));
 
 async function getLatestVideos() {
-  const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=6`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.items;
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=6`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.items) {
+      console.log("YouTube API error:", data);
+      return [];
+    }
+
+    return data.items.filter(v => v.id.videoId); // hanya video
+  } catch (err) {
+    console.log("Fetch error:", err);
+    return [];
+  }
 }
 
 //
-// 🟣 HALAMAN LANDING PAGE CHANNEL (yang dibuka dari Snap)
+// 🌐 LANDING PAGE CHANNEL
 //
 app.get("/channel", async (req, res) => {
   const videos = await getLatestVideos();
 
-  const videoHTML = videos.map(v => `
-    <iframe width="350" height="200"
-      src="https://www.youtube.com/embed/${v.id.videoId}"
-      frameborder="0" allowfullscreen>
-    </iframe>
-  `).join("");
+  let videoHTML = "<p>Video belum tersedia 😢</p>";
+
+  if (videos.length > 0) {
+    videoHTML = videos.map(v => `
+      <iframe width="350" height="200"
+        src="https://www.youtube.com/embed/${v.id.videoId}"
+        frameborder="0" allowfullscreen>
+      </iframe>
+    `).join("");
+  }
 
   res.send(`
   <html>
@@ -40,7 +55,7 @@ app.get("/channel", async (req, res) => {
   <body>
     <div class="container">
       <h1>🎬 My YouTube Channel</h1>
-      <p>Welcome! Watch my latest videos and subscribe 🚀</p>
+      <p>Watch my latest videos and subscribe 🚀</p>
       <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">
         🔔 Subscribe Now
       </a>
@@ -53,14 +68,13 @@ app.get("/channel", async (req, res) => {
 });
 
 //
-// 🟣 SNAP ENDPOINT
+// 📺 SNAP ENDPOINT
 //
 app.get("/snap", async (req, res) => {
   const accept = req.headers["accept"] || "";
 
   if (accept.includes("application/vnd.farcaster.snap+json")) {
     const videos = await getLatestVideos();
-    const firstVideo = videos[0];
 
     return res.json({
       version: "1",
@@ -68,11 +82,7 @@ app.get("/snap", async (req, res) => {
       layout: {
         type: "view",
         contents: [
-          { type: "text", value: "📺 Watch my latest YouTube videos!" },
-          {
-            type: "image",
-            url: firstVideo.snippet.thumbnails.high.url
-          },
+          { type: "text", value: "📺 Visit my YouTube channel!" },
           {
             type: "button",
             label: "Open Channel",
