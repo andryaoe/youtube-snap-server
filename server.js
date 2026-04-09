@@ -27,7 +27,6 @@ app.get("/videos", async (req, res) => {
     const videos = response.data.items
       .filter(item => item.id.videoId)
       .map(item => ({
-        title: item.snippet.title,
         videoId: item.id.videoId,
         thumbnail: item.snippet.thumbnails.medium.url,
         url: `https://www.youtube.com/watch?v=${item.id.videoId}`
@@ -55,7 +54,6 @@ app.get("/snap", async (req, res) => {
       return res.status(404).send("No video found");
     }
 
-    const title = video.snippet.title;
     const thumbnail = video.snippet.thumbnails.medium.url;
     const videoUrl = `https://www.youtube.com/watch?v=${video.id.videoId}`;
     const channelUrl = `https://www.youtube.com/channel/${CHANNEL_ID}`;
@@ -66,7 +64,6 @@ app.get("/snap", async (req, res) => {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>${title}</title>
 
           <!-- Farcaster Snap metadata -->
           <meta name="fc:frame" content="vNext" />
@@ -85,7 +82,7 @@ app.get("/snap", async (req, res) => {
           <meta name="fc:frame:button:3:target" content="${shareUrl}" />
         </head>
         <body>
-          <h1>${title}</h1>
+          <!-- Thumbnail only, no title -->
         </body>
       </html>
     `;
