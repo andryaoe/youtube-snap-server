@@ -4,16 +4,24 @@ const path = require("path");
 
 const app = express();
 
-// 🔴 HARDCODE LANGSUNG (tanpa ENV)
-const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
-const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
-const BASE_URL = "https://youtube-snap-server-production.up.railway.app";
+// 🔥 ENV + FALLBACK (ANTI ERROR)
+const API_KEY =
+  process.env.YOUTUBE_API_KEY ||
+  "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
+
+const CHANNEL_ID =
+  process.env.CHANNEL_ID ||
+  "UCtsoONeSvOP-RznVk0iYOGw";
+
+const BASE_URL =
+  process.env.BASE_URL ||
+  "https://youtube-snap-server-production.up.railway.app";
 
 app.use(express.static("public"));
 app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
 
 
-// ===== FETCH YOUTUBE =====
+// ===== YOUTUBE FETCH =====
 async function getLatestVideos() {
   try {
     const url =
@@ -25,27 +33,23 @@ async function getLatestVideos() {
       `&maxResults=6` +
       `&type=video`;
 
-    console.log("Fetching:", url);
+    console.log("API KEY ACTIVE:", API_KEY ? "YES" : "NO");
 
     const res = await fetch(url);
     const data = await res.json();
 
-    console.log("YOUTUBE RESPONSE:", JSON.stringify(data));
-
     if (!data.items) return [];
     return data.items;
   } catch (err) {
-    console.log("YOUTUBE ERROR:", err);
+    console.log("YT ERROR:", err);
     return [];
   }
 }
 
-
-// ===== HOME =====
-app.get("/", (req, res) => res.redirect("/channel"));
+app.get("/", (req,res)=>res.redirect("/channel"));
 
 
-// ===== CHANNEL PAGE =====
+// ===== LANDING PAGE =====
 app.get("/channel", async (req, res) => {
   const videos = await getLatestVideos();
 
@@ -144,7 +148,5 @@ app.get("/frame", async (req, res) => {
   `);
 });
 
-
-// ===== START =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Server running on " + PORT));
