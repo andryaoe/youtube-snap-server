@@ -1,37 +1,48 @@
 const express = require("express");
-const fetch = require("node-fetch");
 const path = require("path");
-
 const app = express();
 
-// ===== ENV (Railway Variables) =====
+// ambil dari Railway env
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
-// ===== Static folders =====
+// static files
 app.use(express.static("public"));
 app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
 
-// =====================================================
-// 🔴 GET LATEST YOUTUBE VIDEOS
-// =====================================================
+
+// ===============================
+// GET LATEST YOUTUBE VIDEOS
+// ===============================
 async function getLatestVideos() {
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=6`;
+    const url =
+      `https://www.googleapis.com/youtube/v3/search` +
+      `?key=${API_KEY}` +
+      `&channelId=${CHANNEL_ID}` +
+      `&part=snippet` +
+      `&order=date` +
+      `&maxResults=6` +
+      `&type=video`; // 🔥 penting: hanya video
+
     const res = await fetch(url);
     const data = await res.json();
+
+    console.log("YouTube API response:", data); // debug railway logs
+
     if (!data.items) return [];
-    return data.items.filter(v => v.id.videoId);
+    return data.items;
+
   } catch (err) {
     console.log("YouTube fetch error:", err);
     return [];
   }
 }
 
-// =====================================================
-// 🏠 LANDING PAGE (normal website)
-// =====================================================
+
+// ===============================
+// CHANNEL PAGE
+// ===============================
 app.get("/channel", async (req, res) => {
   const videos = await getLatestVideos();
 
@@ -49,23 +60,25 @@ app.get("/channel", async (req, res) => {
   res.send(`
   <html>
   <head>
-    <title>YouTube Channel</title>
+    <title>My YouTube Channel</title>
     <style>
       body {margin:0;font-family:sans-serif;background:#0f172a;color:white;}
-      header{text-align:center;padding:30px;background:#1e293b;}
-      .btn{background:red;color:white;padding:12px 25px;border-radius:10px;text-decoration:none;}
-      .container{max-width:1000px;margin:auto;padding:20px;}
-      .videos{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;}
-      .video-card{background:#1e293b;padding:10px;border-radius:12px;width:360px;text-align:center;}
+      header {text-align:center;padding:30px;background:#1e293b;}
+      .btn {background:red;color:white;padding:12px 25px;border-radius:10px;text-decoration:none;}
+      .container {max-width:1000px;margin:auto;padding:20px;}
+      .videos {display:flex;flex-wrap:wrap;justify-content:center;gap:20px;}
+      .video-card {background:#1e293b;padding:10px;border-radius:12px;width:360px;text-align:center;}
     </style>
   </head>
   <body>
     <header>
       <h1>🎬 My YouTube Channel</h1>
-      <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">Subscribe</a>
+      <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">
+        🔔 Subscribe
+      </a>
     </header>
     <div class="container">
-      <h2>Latest Videos</h2>
+      <h2 style="text-align:center;">Latest Videos</h2>
       <div class="videos">${videoHTML}</div>
     </div>
   </body>
@@ -73,9 +86,10 @@ app.get("/channel", async (req, res) => {
   `);
 });
 
-// =====================================================
-// 🟣 SNAP ENDPOINT
-// =====================================================
+
+// ===============================
+// SNAP ENDPOINT
+// ===============================
 app.get("/snap", async (req, res) => {
   const accept = req.headers["accept"] || "";
 
@@ -89,15 +103,19 @@ app.get("/snap", async (req, res) => {
       layout: {
         type: "view",
         contents: [
-          { type: "text", value: "📺 Latest video from my channel!" },
+          { type: "text", value: "📺 Visit my YouTube channel!" },
           {
             type: "image",
-            url: firstVideo?.snippet?.thumbnails?.high?.url || `${BASE_URL}/placeholder.png`
+            url: firstVideo?.snippet?.thumbnails?.high?.url
+              || "https://youtube-snap-server-production.up.railway.app/placeholder.png"
           },
           {
             type: "button",
             label: "Open Channel",
-            action: { type: "open_url", url: `${BASE_URL}/channel` }
+            action: {
+              type: "open_url",
+              url: "https://youtube-snap-server-production.up.railway.app/channel"
+            }
           }
         ]
       }
@@ -107,42 +125,7 @@ app.get("/snap", async (req, res) => {
   res.redirect("/channel");
 });
 
-// =====================================================
-// 🟡 FARCASTER FRAME ENDPOINT
-// =====================================================
-app.get("/frame", async (req, res) => {
-  const videos = await getLatestVideos();
-  const firstVideo = videos[0];
 
-  const image =
-    firstVideo?.snippet?.thumbnails?.high?.url ||
-    `${BASE_URL}/placeholder.png`;
-
-  res.send(`
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta property="og:title" content="My YouTube Frame" />
-    <meta property="og:image" content="${image}" />
-    
-    <meta name="fc:frame" content="vNext" />
-    <meta name="fc:frame:image" content="${image}" />
-    <meta name="fc:frame:button:1" content="▶️ Watch Channel" />
-    <meta name="fc:frame:button:1:action" content="link" />
-    <meta name="fc:frame:button:1:target" content="${BASE_URL}/channel" />
-  </head>
-  <body></body>
-  </html>
-  `);
-});
-
-// =====================================================
-// HEALTH CHECK ROOT
-// =====================================================
-app.get("/", (req, res) => {
-  res.send("YouTube Snap + Frame Server running 🚀");
-});
-
-// =====================================================
+// ===============================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+app.listen(PORT, () => console.log("Server running on port", PORT));
