@@ -1,44 +1,46 @@
 const express = require("express");
-const fetch = require("node-fetch"); // npm install node-fetch@2
+const fetch = require("node-fetch");
 const path = require("path");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
-const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
+// ===== ENV (Railway Variables) =====
+const API_KEY = process.env.YOUTUBE_API_KEY;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
+// ===== Static folders =====
 app.use(express.static("public"));
 app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
 
-// health check untuk Railway
-app.get("/", (req, res) => {
-  res.send("YouTube Snap Server is running 🚀");
-});
-
-// ambil video youtube
+// =====================================================
+// 🔴 GET LATEST YOUTUBE VIDEOS
+// =====================================================
 async function getLatestVideos() {
   try {
     const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=6`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const res = await fetch(url);
+    const data = await res.json();
     if (!data.items) return [];
     return data.items.filter(v => v.id.videoId);
   } catch (err) {
-    console.log("Fetch error:", err);
+    console.log("YouTube fetch error:", err);
     return [];
   }
 }
 
-// landing page channel (PUNYA KAMU — tidak berubah)
+// =====================================================
+// 🏠 LANDING PAGE (normal website)
+// =====================================================
 app.get("/channel", async (req, res) => {
   const videos = await getLatestVideos();
+
   const videoHTML = videos.length
     ? videos.map(v => `
       <div class="video-card">
         <iframe width="350" height="200"
-        src="https://www.youtube.com/embed/${v.id.videoId}"
-        frameborder="0" allowfullscreen></iframe>
+          src="https://www.youtube.com/embed/${v.id.videoId}"
+          frameborder="0" allowfullscreen></iframe>
         <p>${v.snippet.title}</p>
       </div>
     `).join("")
@@ -47,24 +49,23 @@ app.get("/channel", async (req, res) => {
   res.send(`
   <html>
   <head>
-    <title>My YouTube Channel</title>
+    <title>YouTube Channel</title>
     <style>
       body {margin:0;font-family:sans-serif;background:#0f172a;color:white;}
-      header {text-align:center;padding:30px;background:#1e293b;}
-      .btn {background:red;color:white;padding:12px 25px;border-radius:10px;text-decoration:none;}
-      .container {max-width:1000px;margin:auto;padding:20px;}
-      .videos {display:flex;flex-wrap:wrap;justify-content:center;gap:20px;}
-      .video-card {background:#1e293b;padding:10px;border-radius:12px;width:360px;text-align:center;}
+      header{text-align:center;padding:30px;background:#1e293b;}
+      .btn{background:red;color:white;padding:12px 25px;border-radius:10px;text-decoration:none;}
+      .container{max-width:1000px;margin:auto;padding:20px;}
+      .videos{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;}
+      .video-card{background:#1e293b;padding:10px;border-radius:12px;width:360px;text-align:center;}
     </style>
   </head>
   <body>
     <header>
       <h1>🎬 My YouTube Channel</h1>
-      <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">
-      🔔 Subscribe Now</a>
+      <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">Subscribe</a>
     </header>
     <div class="container">
-      <h2 style="text-align:center;">Latest Videos</h2>
+      <h2>Latest Videos</h2>
       <div class="videos">${videoHTML}</div>
     </div>
   </body>
@@ -72,7 +73,9 @@ app.get("/channel", async (req, res) => {
   `);
 });
 
-// SNAP endpoint (punya kamu — tetap)
+// =====================================================
+// 🟣 SNAP ENDPOINT
+// =====================================================
 app.get("/snap", async (req, res) => {
   const accept = req.headers["accept"] || "";
 
@@ -86,19 +89,15 @@ app.get("/snap", async (req, res) => {
       layout: {
         type: "view",
         contents: [
-          { type: "text", value: "📺 Visit my YouTube channel!" },
+          { type: "text", value: "📺 Latest video from my channel!" },
           {
             type: "image",
-            url: firstVideo?.snippet?.thumbnails?.high?.url ||
-              "https://youtube-snap-server-production.up.railway.app/placeholder.png"
+            url: firstVideo?.snippet?.thumbnails?.high?.url || `${BASE_URL}/placeholder.png`
           },
           {
             type: "button",
             label: "Open Channel",
-            action: {
-              type: "open_url",
-              url: "https://youtube-snap-server-production.up.railway.app/channel"
-            }
+            action: { type: "open_url", url: `${BASE_URL}/channel` }
           }
         ]
       }
@@ -108,6 +107,42 @@ app.get("/snap", async (req, res) => {
   res.redirect("/channel");
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+// =====================================================
+// 🟡 FARCASTER FRAME ENDPOINT
+// =====================================================
+app.get("/frame", async (req, res) => {
+  const videos = await getLatestVideos();
+  const firstVideo = videos[0];
+
+  const image =
+    firstVideo?.snippet?.thumbnails?.high?.url ||
+    `${BASE_URL}/placeholder.png`;
+
+  res.send(`
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta property="og:title" content="My YouTube Frame" />
+    <meta property="og:image" content="${image}" />
+    
+    <meta name="fc:frame" content="vNext" />
+    <meta name="fc:frame:image" content="${image}" />
+    <meta name="fc:frame:button:1" content="▶️ Watch Channel" />
+    <meta name="fc:frame:button:1:action" content="link" />
+    <meta name="fc:frame:button:1:target" content="${BASE_URL}/channel" />
+  </head>
+  <body></body>
+  </html>
+  `);
 });
+
+// =====================================================
+// HEALTH CHECK ROOT
+// =====================================================
+app.get("/", (req, res) => {
+  res.send("YouTube Snap + Frame Server running 🚀");
+});
+
+// =====================================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on port " + PORT));
