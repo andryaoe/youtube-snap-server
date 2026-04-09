@@ -1,0 +1,12 @@
+{
+  "version": "1",
+  "name": "YouTube Snap Server",
+  "description": "Snap menampilkan video terbaru, bio, dan tombol subscribe dari channel YouTube saya",
+  "icon": "https://youtube-snap-server-production.up.railway.app/icon.png",
+  "homeUrl": "https://youtube-snap-server-production.up.railway.app",
+  "imageUrl": "https://youtube-snap-server-production.up.railway.app/placeholder.png",
+  "splashImageUrl": "https://youtube-snap-server-production.up.railway.app/splash.png",
+  "splashBackgroundColor": "#0f172a",
+  "buttonTitle": "Open Channel",
+  "webhookUrl": "https://youtube-snap-server-production.up.railway.app/api/webhook"
+}
