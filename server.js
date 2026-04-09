@@ -3,19 +3,27 @@ const fetch = require("node-fetch"); // npm install node-fetch@2
 const app = express();
 
 const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
+const express = require("express");
+const fetch = require("node-fetch"); // npm install node-fetch@2
+const path = require("path");
+const app = express();
+
+const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
 const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
 
+// Serve folder public (CSS, images, placeholder)
 app.use(express.static("public"));
 
-// Ambil video terbaru
+// Serve .well-known for Farcaster manifest
+app.use("/.well-known", express.static(path.join(__dirname, ".well-known")));
+
+// Ambil video terbaru dari YouTube
 async function getLatestVideos() {
   try {
     const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=6`;
     const res = await fetch(url);
     const data = await res.json();
-
     if (!data.items) return [];
-
     return data.items.filter(v => v.id.videoId); // hanya video
   } catch (err) {
     console.log("Fetch error:", err);
@@ -23,10 +31,9 @@ async function getLatestVideos() {
   }
 }
 
-// Landing page channel (dark theme, bio, subscribe, video grid)
+// Landing page channel (dark theme)
 app.get("/channel", async (req, res) => {
   const videos = await getLatestVideos();
-
   const videoHTML = videos.length
     ? videos.map(v => `
       <div class="video-card">
@@ -102,10 +109,10 @@ app.get("/snap", async (req, res) => {
     });
   }
 
+  // Jika bukan Snap request, redirect ke landing page
   res.redirect("/channel");
 });
 
-// Listen
-app.listen(process.env.PORT || 3000, "0.0.0.0", () =>
-  console.log("Server running on port " + (process.env.PORT || 3000))
-);
+// Jalankan server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
