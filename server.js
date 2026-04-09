@@ -1,48 +1,66 @@
-// server.js final full interaktif untuk channel andryaoe
 const express = require("express");
 const app = express();
 
-// Data langsung (API key dan channel ID)
 const API_KEY = "AIzaSyAZL9gU6nAHLLy4RA00T8LdqjwAddZUPgQ";
 const CHANNEL_ID = "UCtsoONeSvOP-RznVk0iYOGw";
 
-// Ambil 5 video terbaru
+app.use(express.static("public"));
+
 async function getLatestVideos() {
-  const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=5`;
+  const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet&order=date&maxResults=6`;
   const res = await fetch(url);
   const data = await res.json();
-
-  return data.items.map(video => ({
-    type: "view",
-    layout: "horizontal",
-    contents: [
-      {
-        type: "image",
-        url: video.snippet.thumbnails.medium.url
-      },
-      {
-        type: "button",
-        label: video.snippet.title.substring(0,50),
-        action: {
-          type: "open_url",
-          url: `https://www.youtube.com/watch?v=${video.id.videoId}`
-        }
-      }
-    ]
-  }));
+  return data.items;
 }
 
-// Route utama
-app.get("/", (req, res) => {
-  res.send("<h1>YouTube Snap Server</h1><p>Gunakan /snap untuk Farcaster Snap</p>");
+//
+// 🟣 HALAMAN LANDING PAGE CHANNEL (yang dibuka dari Snap)
+//
+app.get("/channel", async (req, res) => {
+  const videos = await getLatestVideos();
+
+  const videoHTML = videos.map(v => `
+    <iframe width="350" height="200"
+      src="https://www.youtube.com/embed/${v.id.videoId}"
+      frameborder="0" allowfullscreen>
+    </iframe>
+  `).join("");
+
+  res.send(`
+  <html>
+  <head>
+    <title>My YouTube Channel</title>
+    <style>
+      body{font-family:sans-serif;background:#0f172a;color:white;text-align:center}
+      .container{max-width:900px;margin:auto}
+      .btn{background:red;padding:15px 25px;color:white;text-decoration:none;border-radius:10px}
+      iframe{margin:10px;border-radius:12px}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎬 My YouTube Channel</h1>
+      <p>Welcome! Watch my latest videos and subscribe 🚀</p>
+      <a class="btn" href="https://www.youtube.com/channel/${CHANNEL_ID}" target="_blank">
+        🔔 Subscribe Now
+      </a>
+      <h2>Latest Videos</h2>
+      ${videoHTML}
+    </div>
+  </body>
+  </html>
+  `);
 });
 
-// Route Snap untuk Farcaster
+//
+// 🟣 SNAP ENDPOINT
+//
 app.get("/snap", async (req, res) => {
   const accept = req.headers["accept"] || "";
 
   if (accept.includes("application/vnd.farcaster.snap+json")) {
     const videos = await getLatestVideos();
+    const firstVideo = videos[0];
 
     return res.json({
       version: "1",
@@ -50,19 +68,27 @@ app.get("/snap", async (req, res) => {
       layout: {
         type: "view",
         contents: [
-          { type: "text", value: "📺 My Latest YouTube Videos" },
-          ...videos
+          { type: "text", value: "📺 Watch my latest YouTube videos!" },
+          {
+            type: "image",
+            url: firstVideo.snippet.thumbnails.high.url
+          },
+          {
+            type: "button",
+            label: "Open Channel",
+            action: {
+              type: "open_url",
+              url: "https://youtube-snap-server-production.up.railway.app/channel"
+            }
+          }
         ]
       }
     });
   }
 
-  // Browser biasa → redirect ke channel
-  res.redirect(`https://www.youtube.com/channel/${CHANNEL_ID}`);
+  res.redirect("/channel");
 });
 
-// Listen ke Railway port
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("Snap server running on port " + PORT);
-});
+app.listen(process.env.PORT || 3000, "0.0.0.0", () =>
+  console.log("Server running")
+);
