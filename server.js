@@ -6,9 +6,13 @@ app.use(express.json());
 // URL website YouTube kamu (GitHub Pages tadi)
 const WEBSITE_URL = "https://andryaoe.github.io/youtube-snap/";
 
-// Route utama Snap
-app.get("/", (req, res) => {
-  const accept = req.headers.accept || "";
+// Route utama snap
+app.get("/snap", (req, res) => {
+  res.json({
+    version: "1",
+    type: "farcaster-snap"
+  });
+});
 
   // 👉 Jika Farcaster request Snap (minta JSON)
   if (accept.includes("application/json")) {
